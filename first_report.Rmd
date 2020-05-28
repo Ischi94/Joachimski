@@ -1,7 +1,7 @@
 ---
 title: "pCO2 Confidence Intervals"
 author: "Gregor Mathes"
-date: "2020-25-08"
+date: "2020-28-05"
 output:
   html_document: 
     toc: true
@@ -108,7 +108,7 @@ boot_result <- tibble(sample_name = sol_dat$Sample[1], lwr_ci = boot_ci$bca[4],
 
 After bootstrapping, we get a distribution of 1000 values, with each value being the mean of a resampled version of our original data. From this new distribution, we calculated the confidence intervals and saved it in a dataframe. Let's take a look at the distribution and the intervals: 
 
-```{r conf int plot, echo=FALSE}
+```{r conf int plot, echo=FALSE, warning=FALSE}
 boot_sample_values <- boot_sample$t %>% 
   as_tibble() %>% 
   add_column(trials = 1:1000) %>% 
@@ -123,7 +123,7 @@ ggplot(boot_sample_values) +
              linetype = "dashed", color = "darkred")
 ```
 
-The red line shows the mean of our original data, which is the same as the mean of all bootstrapped distributions. The dashed lines show the upper und lower confidence intervals. As predicted, it is a normal distribution. To wrap up, we can report the value for pCO2 for the sample *BG2* as 721.8 [674.5, 768.2]. 
+The red line shows the mean of our original data, which is the same as the mean of all bootstrapped distributions. The dashed lines show the upper und lower confidence intervals. As predicted, it is a normal distribution. To wrap up, we can report the value for pCO2 for the sample *BG2* as `r round(boot_result$mean_pCO2,2)` [`r round(boot_result$lwr_ci,2)`, `r round(boot_result$upr_ci,2)`]. 
 
 ```{r end result}
 knitr::kable(boot_result)
