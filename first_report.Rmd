@@ -1,0 +1,135 @@
+---
+title: "pCO2 Confidence Intervals"
+author: "Gregor Mathes"
+date: "2020-25-08"
+output:
+  html_document: 
+    toc: true
+    toc_float: true
+    number_sections: true  
+    theme: journal
+  github_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+# Introduction
+
+This report is just to double-check whether I have calculated everything correctly. The methodology is comparably simple: We first calculate a pCO2 value for every possible combination of soil temperature and soil derived CO2. The result is a distribution of pCO2 values from which we can calculate an average (*mean*). This *mean* should be the same as for the min-max approach you have used. We can calculate a bootstrapped confidence interval for this mean by repeatedly sampling from the distribution.  
+I will showcase this approach using the first sample (*BG2*). If everything is fine and I get the ok from you, I will wrap a loop around every single sample and then send you the code file and the final data with a mean value, a lower confidence value, and an upper confidence value for each sample.
+  
+# Data analysis
+
+## Data
+
+I have cleaned the column names of the data file and renamed it to *paleosol_data.xlsx*. The first step is to load it into R. 
+```{r data input}
+sol_dat <- readxl::read_excel("paleosol_data.xlsx")
+knitr::kable(sol_dat[1:5,])
+```
+
+## Calculate d13Cs
+
+All we need for d13Cs is the soil temperature. We set up a vector ranging from the minimum of the first sample to the maximum in 1°C steps. 
+
+```{r temp_range}
+temp_range <- seq(sol_dat$soil_temp_min[1], sol_dat$soil_temp_max[1], 1)
+temp_range
+```
+Now we calculate a d13Cs value of the first sample for each of these temperature values using a loop (iterating through `temp_range`). We do this by taking the d13Ccarb value of the sample (`sol_dat$d13Ccarb[1]`) minus the term `(11.98 - 0.12 * i)`, where `i` stands for one temperature range value. 
+
+```{r d13Cs}
+# set up vector for output
+d13Cs <- vector("numeric", length(temp_range))
+
+# iterate through each temperature value and calculate d13Cs
+for(i in temp_range){
+  d13Cs[i - 14] <- sol_dat$d13Ccarb[1] - (11.98 - 0.12 * i)
+}
+
+d13Cs
+```
+
+## Calculate pCO2
+
+Now we can already start to calculate pCO2 values by iterating through each **d13Cs** value and each **Sz** value. The code might look a bit difficult, but it just applies the formula `Sz[j] * ((d13Cs[i] - 1.0044 * d13Cresp - 4.4) / (d13Catm - d13Cs))` where **j** is a value of **Sz** ranging from 500 to 1500 in steps of 100 and **i** is a temperature value between min and max. We save it in a dataframe called `pCO2`. 
+
+```{r pCO2 distribution}
+# preallocate data frame
+pCO2 <- tibble(Sz = seq(500, 1500, 100), 
+               temp_range = temp_range, empty_row = rep(0,11)) %>% 
+  pivot_wider(names_from = temp_range, values_from = empty_row, names_prefix = "temp_")
+
+
+# calculate pcO2 value for each soil temp/ Sz combination
+for (i in seq_along(d13Cs)) {
+  for (j in seq_along(pCO2$Sz)) {
+    pCO2[i, j +1] <- pCO2$Sz[j] * ((d13Cs[i] - 1.0044 * sol_dat$d13Cresp[1] - 4.4) / (sol_dat$d13Catm[1] - d13Cs[i]))
+  }
+}
+pCO2
+```
+
+The result is a distribution ranging from the minimum at 15°C and 500ppm to the maximum at 25°C and 1500ppm. The mean value, depicted by a red line in the plot below, is at **721.8243** and should be the same as your mean value for the sample *BG2* calculated by taking the min and max value. If it's not the same value, it means that I made a mistake. 
+
+```{r pCO2 distribution plot, echo=FALSE}
+# convert to long format for plotting
+pCO2_long <- pCO2 %>% 
+  pivot_longer(cols = -Sz, names_to = "soil_temp", values_to = "pCO2")
+
+ggplot(pCO2_long) +
+  geom_histogram(aes(pCO2), binwidth = 40) +
+  geom_vline(xintercept = mean(pCO2_long$pCO2), colour = "red")
+```
+
+## Bootstrapping 
+
+The next step is to express our uncertainty around this mean value. We would overestimate it (extremely) by just reporting the max and min values, wich are unlikely to occurr given our distribution. 95% Confidence Intervals show were the mean of our sample would be in 95 out of 100 cases if we would hypothetically sample from a similar distribution. We can do this by randomly sampling from our distribution with replacement and iteratively calculate the mean. With replacement means that if we would sample from the vector c(1,2,3,4), we could get this vector after sampling: c(1,1,2,4). This approach is called bootstrapping.  
+The law of large numbers guarantees that we get a normal distribution after bootstrapping, so we can apply the adjusted bootstrap percentile (BCa) interval, which is really robust. 
+
+```{r bootstrap, warning=FALSE, message=FALSE}
+# set up mean function
+mean.fun <- function(pCO2_long, pCO2) mean(pCO2_long[pCO2], na.rm = TRUE)
+
+# apply bootstrapping with mean as statistic, with 1000 repetition
+boot_sample <- boot::boot(data = pCO2_long$pCO2,
+                          statistic = mean.fun, R = 1000, sim="ordinary")
+
+# get the BCa confidence intervals
+boot_ci <- boot::boot.ci(boot_sample, type = "bca")
+
+# save it in a dataframe
+boot_result <- tibble(sample_name = sol_dat$Sample[1], lwr_ci = boot_ci$bca[4],
+                      mean_pCO2 = boot_ci$t0, upr_ci = boot_ci$bca[5])
+```
+
+After bootstrapping, we get a distribution of 1000 values, with each value being the mean of a resampled version of our original data. From this new distribution, we calculated the confidence intervals and saved it in a dataframe. Let's take a look at the distribution and the intervals: 
+
+```{r conf int plot, echo=FALSE}
+boot_sample_values <- boot_sample$t %>% 
+  as_tibble() %>% 
+  add_column(trials = 1:1000) %>% 
+  select(mean_pCO2 = V1, trials)
+
+ggplot(boot_sample_values) +
+  geom_histogram(aes(mean_pCO2), binwidth = 7) +
+  geom_vline(xintercept = mean(boot_result$mean_pCO2), color = "darkred") +
+  geom_vline(xintercept = mean(boot_result$lwr_ci), 
+             linetype = "dashed", color = "darkred") +
+  geom_vline(xintercept = mean(boot_result$upr_ci), 
+             linetype = "dashed", color = "darkred")
+```
+
+The red line shows the mean of our original data, which is the same as the mean of all bootstrapped distributions. The dashed lines show the upper und lower confidence intervals. As predicted, it is a normal distribution. To wrap up, we can report the value for pCO2 for the sample *BG2* as 721.8 [674.5, 768.2]. 
+
+```{r end result}
+knitr::kable(boot_result)
+```
+
+
+# Conclusions
+
+Please let me know if you got the same mean value for the sample *BG2* using the min max approach. If we got the same result, everything is fine and I can calculate the confidence interval for the remaining samples. If not, I have to go through the equations and see where I made a mistake. I can visualise the end result as well if you want if you send me the ages for each sample. 
