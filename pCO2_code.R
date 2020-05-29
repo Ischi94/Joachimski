@@ -1,5 +1,6 @@
 # load libraries
-library(tidyverse)
+library(tidyverse) # for data processing
+library(openxlsx) # for writing to excel file
 
 
 # functions 
@@ -93,5 +94,13 @@ boot_result_median <- c(as.double(boot_ci_median$bca[4]),
 boot_median_df[boot_median_df$sample_name == sol_dat$Sample[x],2:4] <- boot_result_median
 }
 
+# need to rename to pcO2 variable of median df
+boot_median_df <- boot_median_df %>% 
+  select(sample_name, lwr_ci, median_pCO2 = mean_pCO2, upr_ci)
 
+# save data to working directory
+# mean
+write.xlsx(boot_mean_df, file = "mean-pCO2.xlsx")
 
+# median
+write.xlsx(boot_median_df, file = "median-pCO2.xlsx")
