@@ -1,71 +1,97 @@
 # load libraries
 library(tidyverse)
 
+
+# functions 
+# set up mean function for bootstrapping
+mean.fun <- function(pCO2_long, pCO2) mean(pCO2_long[pCO2], na.rm = TRUE)
+
+# same for median
+median.fun <- function(pCO2_long, pCO2) median(pCO2_long[pCO2], na.rm = TRUE)
+
+
 # load data
 sol_dat <- readxl::read_excel("paleosol_data.xlsx")
 
+# set-up ------------------------------------------------------------------
 
-# we start with sample BG2 first to get into the matter
+# set up data frame for output
+boot_mean_df <- data.frame(sample_name = sol_dat$Sample, 
+                    lwr_ci = vector("numeric", length(sol_dat$Sample)),
+                    mean_pCO2 = vector("numeric", length(sol_dat$Sample)), 
+                    upr_ci = vector("numeric", length(sol_dat$Sample)))
+
+# same for median
+boot_median_df <- boot_mean_df
+
+
+
+
+# loop trhough every sample x ---------------------------------------------
+
+
+for (x in seq_along(sol_dat$Sample)) {
+  
 # define soil temperature range
-temp_range <- seq(sol_dat$soil_temp_min[1], sol_dat$soil_temp_max[1], 1)
+temp_range <- seq(sol_dat$soil_temp_min[x], sol_dat$soil_temp_max[x], 1)
 
 # set up vector for output
 d13Cs <- vector("numeric", length(temp_range))
 
 # iterate through each temperature value and calculate d13Cs
 for(i in temp_range){
-  d13Cs[i - 14] <- sol_dat$d13Ccarb[1] - (11.98 - 0.12 * i)
+  d13Cs[i -  (max(temp_range) - length(temp_range))] <- 
+    sol_dat$d13Ccarb[x] - (11.98 - 0.12 * i)
 }
 
 # iterate through each d13Cs value and each Sz value and calculate pC02
 # preallocate data frame
 pCO2 <- tibble(Sz = seq(500, 1500, 100), 
-               temp_range = temp_range, empty_row = rep(0,11)) %>% 
+               temp_range = temp_range, empty_row = rep(0,length(temp_range))) %>% 
   pivot_wider(names_from = temp_range, values_from = empty_row, names_prefix = "temp_")
 
 
 # calculate pcO2 value for each soil temp/ Sz combination
 for (i in seq_along(d13Cs)) {
   for (j in seq_along(pCO2$Sz)) {
-    pCO2[i, j +1] <- pCO2$Sz[j] * ((d13Cs[i] - 1.0044 * sol_dat$d13Cresp[1] - 4.4) / (sol_dat$d13Catm[1] - d13Cs[i]))
+    pCO2[i, j +1] <- pCO2$Sz[j] * ((d13Cs[i] - 1.0044 * sol_dat$d13Cresp[x] - 4.4) / (sol_dat$d13Catm[x] - d13Cs[i]))
   }
 }
 
-# plot it
-# convert to long format for plotting
+# convert to long format for proceeding
 pCO2_long <- pCO2 %>% 
   pivot_longer(cols = -Sz, names_to = "soil_temp", values_to = "pCO2")
 
-ggplot(pCO2_long) +
-  geom_histogram(aes(pCO2), binwidth = 40) +
-  geom_vline(xintercept = mean(pCO2_long$pCO2), colour = "red")
-
-# bootstrapping 
-# set up mean function
-mean.fun <- function(pCO2_long, pCO2) mean(pCO2_long[pCO2], na.rm = TRUE)
-
-boot_sample <- boot::boot(data = pCO2_long$pCO2,
+# bootstrapping mean
+# set seed
+set.seed(1234)
+boot_mean <- boot::boot(data = pCO2_long$pCO2,
                           statistic = mean.fun, R = 1000, sim="ordinary")
 
-boot_ci <- boot::boot.ci(boot_sample, type = "bca")
+boot_ci_mean <- boot::boot.ci(boot_mean, type = "bca")
 
-boot_result <- tibble(sample_name = sol_dat$Sample[1], lwr_ci = boot_ci$bca[4],
-                      mean_pCO2 = boot_ci$t0, upr_ci = boot_ci$bca[5])
+# save in data frame
+boot_result_mean <- c(as.double(boot_ci_mean$bca[4]),
+                      as.double(boot_ci_mean$t0), 
+                      as.double(boot_ci_mean$bca[5]))
 
-boot_sample_values <- boot_sample$t %>% 
-  as_tibble() %>% 
-  add_column(trials = 1:1000) %>% 
-  select(mean_pCO2 = V1, trials)
+boot_mean_df[boot_mean_df$sample_name == sol_dat$Sample[x],2:4] <- boot_result_mean
 
-ggplot(boot_sample_values) +
-  geom_histogram(aes(mean_pCO2), binwidth = 7) +
-  geom_vline(xintercept = mean(boot_result$mean_pCO2), color = "darkred") +
-  geom_vline(xintercept = mean(boot_result$lwr_ci), 
-             linetype = "dashed", color = "darkred") +
-  geom_vline(xintercept = mean(boot_result$upr_ci), 
-             linetype = "dashed", color = "darkred")
+# same for median
+# set seed
+set.seed(1234)
+boot_median <- boot::boot(data = pCO2_long$pCO2,
+                        statistic = median.fun, R = 1000, sim="ordinary")
 
+boot_ci_median <- boot::boot.ci(boot_median, type = "bca")
 
+# save in data frame
+boot_result_median <- c(as.double(boot_ci_median$bca[4]),
+                      as.double(boot_ci_median$t0), 
+                      as.double(boot_ci_median$bca[5]))
+
+boot_median_df[boot_median_df$sample_name == sol_dat$Sample[x],2:4] <- boot_result_median
+}
 
 
 
