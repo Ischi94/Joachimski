@@ -68,7 +68,7 @@ pCO2 <- tibble(Sz = seq(500, 1500, 100),
 
 
 # set up range of atmospheric d13C
-d13C_atm_range <- seq(sol_dat$d13C_atm_min[x], sol_dat$d13C_atm_max[x], 1)
+d13C_atm_range <- seq(sol_dat$d13C_atm_min[x], sol_dat$d13C_atm_max[x], 0.1)
 
 
 # calculate pcO2 value for each soil temp/ Sz combination
@@ -98,7 +98,7 @@ pCO2_long <- d13C_atm_range %>%
 # set seed
 set.seed(1234)
 boot_mean <- boot(data = pCO2_long$pCO2,
-                          statistic = mean.fun, R = 1000, sim="ordinary")
+                          statistic = mean.fun, R = 5000, sim="ordinary")
 
 boot_ci_mean <- boot.ci(boot_mean, type = "bca")
 
@@ -107,13 +107,14 @@ boot_result_mean <- c(as.double(boot_ci_mean$bca[4]),
                       as.double(boot_ci_mean$t0), 
                       as.double(boot_ci_mean$bca[5]))
 
-boot_mean_df[boot_mean_df$sample_name == sol_dat$Sample[x],2:4] <- boot_result_mean
+boot_mean_df[boot_mean_df$sample_name == sol_dat$Sample[x],2:4] <- 
+  boot_result_mean
 
 # same for median
 # set seed
 set.seed(1234)
 boot_median <- boot(data = pCO2_long$pCO2,
-                        statistic = median.fun, R = 1000, sim="ordinary")
+                    statistic = median.fun, R = 5000, sim="ordinary")
 
 boot_ci_median <- boot.ci(boot_median, type = "bca")
 
