@@ -51,15 +51,15 @@ sol_dat_dist <- sol_dat %>%
 
 # mean
 sol_dat_mean <- sol_dat_dist %>% 
-  summarise(lwr_ci = mean_qi(pCO2)[[2]], 
-            mean_pCO2 = mean_qi(pCO2)[[1]], 
-            upr_ci = mean_qi(pCO2)[[3]]) 
+  summarise(lwr_ci = mean_hdi(pCO2)[[2]], 
+            mean_pCO2 = mean_hdi(pCO2)[[1]], 
+            upr_ci = mean_hdi(pCO2)[[3]]) 
 
 # median
 sol_dat_median <- sol_dat_dist %>% 
-  summarise(lwr_ci = median_qi(pCO2)[[2]], 
-            mean_pCO2 = median_qi(pCO2)[[1]], 
-            upr_ci = median_qi(pCO2)[[3]]) 
+  summarise(lwr_ci = median_hdi(pCO2)[[2]], 
+            median_pCO2 = median_hdi(pCO2)[[1]], 
+            upr_ci = median_hdi(pCO2)[[3]]) 
   
 
 # save to excel file
@@ -71,8 +71,4 @@ write.xlsx(sol_dat_mean, file = "mean-pCO2.xlsx")
 write.xlsx(sol_dat_median, file = "median-pCO2.xlsx")
 
 
-sol_dat_mean %>% 
-  ggplot(aes(mean_pCO2, Sample, 
-             xmin = lwr_ci, 
-             xmax = upr_ci)) +
-  geom_pointrange()
+
