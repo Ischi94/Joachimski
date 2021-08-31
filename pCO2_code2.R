@@ -1,7 +1,7 @@
 # load libraries
 library(tidyverse) # for data processing
 library(openxlsx) # for writing to excel file
-
+library(tidybayes) # for credible intervals
 
 # load data
 sol_dat <- readxl::read_excel("paleosol_data.xlsx")
@@ -21,7 +21,9 @@ sol_dat <- sol_dat %>%
   drop_na(Sample)
 
 
-sol_dat %>% 
+# calculate distributions of possible 
+# combinations
+sol_dat_dist <- sol_dat %>% 
   mutate(
     # set up temperature range
     temp_range = map2(soil_temp_min, soil_temp_max, seq, by = 1), 
@@ -43,7 +45,34 @@ sol_dat %>%
   # calculate pCO2
   mutate(pCO2 = S_z_range * ((d13Cs - 1.0044 * d13Cresp - 4.4) / 
                                (d13Ca_range - d13Cs))) %>% 
-  group_by(Sample) %>% 
-  summarise(est = tidybayes::median_qi(pCO2), 
-            est_mean = tidybayes::mean_qi(pCO2))
+  group_by(Sample) 
   
+# calculate credible intervals 
+
+# mean
+sol_dat_mean <- sol_dat_dist %>% 
+  summarise(lwr_ci = mean_qi(pCO2)[[2]], 
+            mean_pCO2 = mean_qi(pCO2)[[1]], 
+            upr_ci = mean_qi(pCO2)[[3]]) 
+
+# median
+sol_dat_median <- sol_dat_dist %>% 
+  summarise(lwr_ci = median_qi(pCO2)[[2]], 
+            mean_pCO2 = median_qi(pCO2)[[1]], 
+            upr_ci = median_qi(pCO2)[[3]]) 
+  
+
+# save to excel file
+
+# mean
+write.xlsx(sol_dat_mean, file = "mean-pCO2.xlsx")
+
+# median
+write.xlsx(sol_dat_median, file = "median-pCO2.xlsx")
+
+
+sol_dat_mean %>% 
+  ggplot(aes(mean_pCO2, Sample, 
+             xmin = lwr_ci, 
+             xmax = upr_ci)) +
+  geom_pointrange()
