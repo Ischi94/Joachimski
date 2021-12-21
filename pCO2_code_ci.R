@@ -74,7 +74,8 @@ sol_dat_fix <- sol_dat %>%
     d13Ca_range = map2(d13C_atm_min, d13C_atm_max, seq, by = 0.1), 
     Sz_500 = 500, 
     Sz_1000 = 1000, 
-    Sz_1500 = 1500) %>% 
+    Sz_1500 = 1500, 
+    Sz_2000 = 2000) %>% 
   # expand to grid
   unnest(d13Cs) %>% 
   unnest(d13Ca_range) %>% 
@@ -83,6 +84,7 @@ sol_dat_fix <- sol_dat %>%
          Sz_500, 
          Sz_1000, 
          Sz_1500,
+         Sz_2000,
          d13Cs, 
          d13Cresp, d13Ca_range) %>% 
   # calculate pCO2
@@ -91,7 +93,9 @@ sol_dat_fix <- sol_dat %>%
          pCO2_Sz_1000 = Sz_1000 * ((d13Cs - 1.0044 * d13Cresp - 4.4) / 
                                 (d13Ca_range - d13Cs)),
          pCO2_Sz_1500 = Sz_1500 * ((d13Cs - 1.0044 * d13Cresp - 4.4) / 
-                                (d13Ca_range - d13Cs))) %>% 
+                                (d13Ca_range - d13Cs)), 
+         pCO2_Sz_2000 = Sz_2000 * ((d13Cs - 1.0044 * d13Cresp - 4.4) / 
+                                     (d13Ca_range - d13Cs))) %>% 
   group_by(Sample) 
 
 
@@ -137,10 +141,11 @@ sol_dat_median_qi <- sol_dat_dist %>%
 
 ### same for fixed Sz values
 # mean
-sol_dat_fix_mean_hdi <- sol_dat_fix %>% 
-  mean_hdi(pCO2_Sz_500, 
-            pCO2_Sz_1000, 
-            pCO2_Sz_1500) %>% 
+sol_dat_fix_mean_qi <- sol_dat_fix %>% 
+  mean_qi(pCO2_Sz_500, 
+          pCO2_Sz_1000, 
+          pCO2_Sz_1500, 
+          pCO2_Sz_2000) %>% 
   select(-starts_with("."))
 
 
@@ -169,7 +174,7 @@ write.xlsx(sol_dat_median_qi, file = here("Data",
                                           "median-pCO2-qi.xlsx"))
 
 # fixed Sz_values
-write.xlsx(sol_dat_fix_mean_hdi, file = here("Data", 
+write.xlsx(sol_dat_fix_mean_qi, file = here("Data", 
                                              "Output",
-                                             "mean-pCO2-hdi-fixed-Sz.xlsx"))
+                                             "mean-pCO2-qi-fixed-Sz.xlsx"))
 
