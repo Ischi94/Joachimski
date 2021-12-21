@@ -1,6 +1,6 @@
 ## Overview
 
-This is the repository for the 95% Confidence Intervals for the manuscript **Title: Five million years of high atmospheric CO2 in the aftermath of the Permian-Triassic mass extinction** by
+This is the repository for the 95% Confidence Intervals for the manuscript **Five million years of high atmospheric CO2 in the aftermath of the Permian-Triassic mass extinction** by
 - Michael Joachimski
 - Johann Müller
 - Daoliang Chu
@@ -13,7 +13,7 @@ This is the repository for the 95% Confidence Intervals for the manuscript **Tit
 
 currently in revision in *Geology*. 
 
-Corresponding author: Michael Joachimski
+Corresponding author: Michael Joachimski  
 Responsible for the repository: Gregor Mathes
 
 

@@ -2,13 +2,15 @@
 library(tidyverse) # for data processing
 library(openxlsx) # for writing to excel file
 library(tidybayes) # for credible intervals
-
+library(here) # for file structure
 
 # Data preparation --------------------------------------------------------
 
 
 # load data
-sol_dat <- readxl::read_excel("paleosol_data.xlsx")
+sol_dat <- readxl::read_excel(here("Data",
+                                   "Input", 
+                                   "paleosol_data.xlsx"))
 
 # clean column names
 sol_dat <- sol_dat %>% 
@@ -147,17 +149,27 @@ sol_dat_fix_mean_hdi <- sol_dat_fix %>%
 
 
 # mean hdi
-write.xlsx(sol_dat_mean_hdi, file = "mean-pCO2-hdi.xlsx")
+write.xlsx(sol_dat_mean_hdi, file = here("Data", 
+                                         "Output", 
+                                         "mean-pCO2-hdi.xlsx"))
 
 # median hdi
-write.xlsx(sol_dat_median_hdi, file = "median-pCO2-hdi.xlsx")
+write.xlsx(sol_dat_median_hdi, file = here("Data", 
+                                           "Output",
+                                           "median-pCO2-hdi.xlsx"))
 
 # mean qi
-write.xlsx(sol_dat_mean_qi, file = "mean-pCO2-qi.xlsx")
+write.xlsx(sol_dat_mean_qi, file = here("Data", 
+                                        "Output",
+                                        "mean-pCO2-qi.xlsx"))
 
 # median qi
-write.xlsx(sol_dat_median_qi, file = "median-pCO2-qi.xlsx")
+write.xlsx(sol_dat_median_qi, file = here("Data", 
+                                          "Output",
+                                          "median-pCO2-qi.xlsx"))
 
 # fixed Sz_values
-write.xlsx(sol_dat_fix_mean_hdi, file = "mean-pCO2-hdi-fixed-Sz.xlsx")
+write.xlsx(sol_dat_fix_mean_hdi, file = here("Data", 
+                                             "Output",
+                                             "mean-pCO2-hdi-fixed-Sz.xlsx"))
 
